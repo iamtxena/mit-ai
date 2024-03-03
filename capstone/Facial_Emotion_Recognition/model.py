@@ -17,7 +17,7 @@ import tensorflow as tf
 from sklearn.metrics import classification_report, confusion_matrix
 from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.optimizers import SGD, Adam
+from tensorflow.keras.optimizers import SGD, Adam, Nadam
 
 
 class DualOutput(Callback):
@@ -83,6 +83,8 @@ def run_model(
         optimizer = SGD(learning_rate=learning_rate, momentum=0.9)
     elif optimizer_name.lower() == "adam":
         optimizer = Adam(learning_rate=learning_rate)
+    elif optimizer_name.lower() == "nadam":
+        optimizer = Nadam(learning_rate=learning_rate)
     else:
         raise ValueError("Optimizer not supported. Use 'SGD' or 'Adam'.")
 

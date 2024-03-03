@@ -45,17 +45,22 @@ model:
     - type: Dense
       units: 64
       activation: relu
+    - type: Dropout
+      rate: 0.3
     - type: Dense
       units: 32
       activation: relu
+    - type: Dropout
+      rate: 0.3
     - type: Dense
       units: 4
       activation: softmax
   compile:
-    optimizer_name: adam
+    optimizer_name: nadam
     learning_rate: 0.0005
   train:
     epochs: 30
-    batch_size: 32
+    batch_size: 16
     patience: 7
 
+# using https://dspace.library.uvic.ca/server/api/core/bitstreams/25d0a7d6-93af-4e58-a28d-a92dd8d45ca4/content
