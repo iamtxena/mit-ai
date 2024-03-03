@@ -1,0 +1,66 @@
+
+        <html>
+        <head><title>Model Summary - 2024-03-03 17:03:26</title></head>
+        <body>
+        <h1>Model Summary</h1>
+        <pre>Model: "sequential"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ conv2d (Conv2D)             (None, 46, 46, 32)        320       
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 23, 23, 32)        0         
+ D)                                                              
+                                                                 
+ conv2d_1 (Conv2D)           (None, 21, 21, 64)        18496     
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 10, 10, 64)        0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 6400)              0         
+                                                                 
+ dense (Dense)               (None, 64)                409664    
+                                                                 
+ dense_1 (Dense)             (None, 4)                 260       
+                                                                 
+=================================================================
+Total params: 428740 (1.64 MB)
+Trainable params: 428740 (1.64 MB)
+Non-trainable params: 0 (0.00 Byte)
+_________________________________________________________________
+</pre>
+        <h2>Test Accuracy</h2>
+        <p>1/4 [======>.......................] - ETA: 0s - loss: 0.7016 - accuracy: 0.65624/4 [==============================] - 0s 1ms/step - loss: 0.8235 - accuracy: 0.6250
+</p>
+        <h2>Accuracy Plot</h2>
+        <img src="./accuracy_plot_20240303-170315.png" alt="Accuracy Plot">
+        <h2>Classification Report</h2>
+        <pre>              precision    recall  f1-score   support
+
+       happy       0.63      0.69      0.66        32
+     neutral       0.52      0.50      0.51        32
+         sad       0.58      0.47      0.52        32
+    surprise       0.75      0.84      0.79        32
+
+    accuracy                           0.62       128
+   macro avg       0.62      0.62      0.62       128
+weighted avg       0.62      0.62      0.62       128
+
+</pre>
+        <h2>History</h2>
+        <pre>Epoch 1: loss: 1.1667, accuracy: 0.4740, val_loss: 1.0419, val_accuracy: 0.5666
+Epoch 2: loss: 0.9793, accuracy: 0.5878, val_loss: 0.9303, val_accuracy: 0.6253
+Epoch 3: loss: 0.8931, accuracy: 0.6296, val_loss: 0.9232, val_accuracy: 0.6217
+Epoch 4: loss: 0.8314, accuracy: 0.6619, val_loss: 0.8982, val_accuracy: 0.6311
+Epoch 5: loss: 0.7778, accuracy: 0.6797, val_loss: 0.8439, val_accuracy: 0.6528
+Epoch 6: loss: 0.7254, accuracy: 0.7075, val_loss: 0.9214, val_accuracy: 0.6369
+Epoch 7: loss: 0.6742, accuracy: 0.7286, val_loss: 0.8519, val_accuracy: 0.6550
+Epoch 8: loss: 0.6133, accuracy: 0.7580, val_loss: 0.8821, val_accuracy: 0.6558
+</pre>
+        <h2>Confusion Matrix</h2>
+        <img src="./confusion_matrix_20240303-170315.png" alt="Confusion Matrix">
+        <h2>Predicted Images</h2>
+        <img src="./prediction_20240303-170326.png" alt="Predicted Images">
+        </body>
+        </html>
+        

@@ -1,0 +1,31 @@
+model:
+  layers:
+    - type: Conv2D
+      filters: 32
+      kernel_size: [3, 3]
+      activation: relu
+      padding: same
+      input_shape: [48, 48, 1]
+    - type: MaxPooling2D
+      pool_size: [2, 2]
+    - type: Conv2D
+      filters: 64
+      kernel_size: [3, 3]
+      activation: relu
+      padding: same
+    - type: MaxPooling2D
+      pool_size: [2, 2]
+    - type: Flatten
+    - type: Dense
+      units: 64
+      activation: relu
+    - type: Dense
+      units: 4
+      activation: softmax
+  compile:
+    optimizer_name: adam
+    learning_rate: 0.001
+  train:
+    epochs: 10
+    batch_size: 32
+    patience: 3

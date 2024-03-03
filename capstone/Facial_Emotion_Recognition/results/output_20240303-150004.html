@@ -1,0 +1,50 @@
+
+        <html>
+        <head><title>Model Summary - 2024-03-03 15:00:04</title></head>
+        <body>
+        <h1>Model Summary</h1>
+        <pre>Model: "sequential"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ conv2d (Conv2D)             (None, 46, 46, 32)        320       
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 23, 23, 32)        0         
+ D)                                                              
+                                                                 
+ conv2d_1 (Conv2D)           (None, 21, 21, 64)        18496     
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 10, 10, 64)        0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 6400)              0         
+                                                                 
+ dense (Dense)               (None, 64)                409664    
+                                                                 
+ dense_1 (Dense)             (None, 4)                 260       
+                                                                 
+=================================================================
+Total params: 428740 (1.64 MB)
+Trainable params: 428740 (1.64 MB)
+Non-trainable params: 0 (0.00 Byte)
+_________________________________________________________________
+</pre>
+        <h2>Test Accuracy</h2>
+        <p>1/4 [======>.......................] - ETA: 0s - loss: 1.2507 - accuracy: 0.62504/4 [==============================] - 0s 1ms/step - loss: 0.9073 - accuracy: 0.6641
+</p>
+        <h2>Classification Report</h2>
+        <pre>              precision    recall  f1-score   support
+
+       happy       0.64      0.78      0.70        32
+     neutral       0.71      0.53      0.61        32
+         sad       0.48      0.62      0.54        32
+    surprise       1.00      0.72      0.84        32
+
+    accuracy                           0.66       128
+   macro avg       0.71      0.66      0.67       128
+weighted avg       0.71      0.66      0.67       128
+
+</pre>
+        </body>
+        </html>
+        
