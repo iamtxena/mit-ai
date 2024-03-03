@@ -4,18 +4,21 @@ It includes the definition of the FacialEmotionRecognition class, which is respo
 preprocessing, and managing the dataset for training, validation, and testing purposes.
 """
 
+import base64
 import os
 from datetime import datetime
+from io import BytesIO
 from typing import List
 
 import numpy as np
 import pandas as pd
+import pyheif
 import yaml
 from model import run_model
 from PIL import Image
-from prediction import predict_and_plot
+from prediction import predict_and_plot, predict_images
 from tensorflow.keras.layers import Conv2D, Dense, Dropout, Flatten, MaxPooling2D
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import Sequential, load_model
 
 
 class FacialEmotionRecognition:
@@ -273,3 +276,82 @@ class FacialEmotionRecognition:
         self.load_data()
         self.preprocess_data()
         self.create_and_run_model(run_config_path)
+
+    def predict(self, model_path: str, images_dir: str, output_dir: str) -> None:
+        """
+        Predicts emotions for images in a specified directory using a trained model and generates an HTML output.
+
+        Parameters:
+        - model_path (str): Path to the trained model file.
+        - images_dir (str): Directory containing images to predict.
+        - output_dir (str): Directory to save the HTML output.
+        """
+        # Load the model
+        model = load_model(model_path)
+
+        # Load and preprocess images
+        images = []
+        for img_name in os.listdir(images_dir):
+            img_path = os.path.join(images_dir, img_name)
+            try:
+                # Check the file extension and process accordingly
+                if img_path.lower().endswith(".heic"):
+                    heif_file = pyheif.read(img_path)
+                    img = Image.frombytes(
+                        heif_file.mode,
+                        heif_file.size,
+                        heif_file.data,
+                        "raw",
+                        heif_file.mode,
+                        heif_file.stride,
+                    ).convert(
+                        "L"
+                    )  # Convert to grayscale
+                else:
+                    img = Image.open(img_path).convert("L")  # Convert to grayscale
+
+                img = img.resize((48, 48))  # Resize to 48x48
+                img_array = np.array(img) / 255.0  # Normalize pixels
+                images.append(img_array)
+            except (IOError, ValueError) as e:
+                print(f"Error processing image {img_name}: {e}")
+
+        images = np.expand_dims(np.array(images), axis=-1)  # Add channel dimension
+
+        # Predict emotions
+        predicted_emotions = predict_images(model, images, self.categories)
+
+        # Generate HTML output
+        self.generate_html_output(predicted_emotions, images, output_dir)
+
+    def generate_html_output(self, predicted_emotions, images, output_dir):
+        """
+        Generates an HTML file displaying images with their predicted emotions.
+
+        Parameters:
+        - predicted_emotions (List[str]): List of predicted emotions.
+        - images (np.ndarray): Array of preprocessed images.
+        - output_dir (str): Directory to save the HTML output.
+        """
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        html_path = os.path.join(output_dir, f"prediction_{timestamp}.html")
+
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write("<html><head><title>Predictions</title></head><body>")
+            f.write("<h1>Predictions</h1>")
+            f.write("<div style='display: flex; flex-wrap: wrap;'>")
+
+            for emotion, img in zip(predicted_emotions, images):
+                img_encoded = Image.fromarray((img.squeeze() * 255).astype(np.uint8))
+                buffered = BytesIO()
+                img_encoded.save(buffered, format="PNG")
+                img_str = base64.b64encode(buffered.getvalue()).decode()
+
+                # Adjust the width as desired, for example to 200 pixels
+                f.write(
+                    f"<div style='margin: 10px;'><img src='data:image/png;base64,{img_str}' title='Predicted: {emotion}' style='width:200px; height:auto;'/><p>Predicted: {emotion}</p></div>"
+                )
+
+            f.write("</div></body></html>")
+
+        print(f"Predictions saved to {html_path}")

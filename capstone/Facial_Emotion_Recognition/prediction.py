@@ -1,3 +1,9 @@
+"""
+This module is designed for predicting emotions from facial images using a pre-trained model.
+It includes functions for making predictions on individual images or batches of images and
+plotting the results for a subset of the test dataset.
+"""
+
 import os
 import random
 from datetime import datetime
@@ -78,3 +84,26 @@ def predict_and_plot(model: Model, X_test: np.ndarray, y_test_encoded: pd.DataFr
 
     # Return the path without the 'results' directory
     return plot_filename
+
+
+def predict_images(model: Model, images: np.ndarray, CATEGORIES: List[str]) -> List[str]:
+    """
+    Predicts emotions for a given array of images using the provided model.
+
+    Parameters:
+    - model (Model): A pre-trained Keras model for emotion prediction.
+    - images (np.ndarray): The dataset consisting of images to predict.
+    - CATEGORIES (List[str]): A list of category names corresponding to the encoded labels.
+
+    Returns:
+    - List[str]: A list of predicted labels for each image.
+    """
+    predicted_labels = []
+    for image in images:
+        # Predict the emotion of the image using the provided model
+        predicted_probabilities = model.predict(np.expand_dims(image, axis=0))
+        predicted_label_index = np.argmax(predicted_probabilities)
+        predicted_label = CATEGORIES[predicted_label_index]
+        predicted_labels.append(predicted_label)
+
+    return predicted_labels
