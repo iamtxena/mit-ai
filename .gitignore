@@ -142,3 +142,6 @@ __pycache__/
 capstone/Malaria_Detection/cell_images.zip
 elective/SVHN_single_grey1.h5
 capstone/Facial_Emotion_Recognition/Facial_emotion_images.zip
+*.zip
+*.keras
+*.h5
