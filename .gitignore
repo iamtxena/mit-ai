@@ -147,3 +147,5 @@ capstone/Facial_Emotion_Recognition/Facial_emotion_images.zip
 *.h5
 
 elective/Recommendation_Systems/ratings_Electronics.csv
+capstone/Music_Recommendation_System/*.csv
+
