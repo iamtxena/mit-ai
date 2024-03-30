@@ -145,3 +145,5 @@ capstone/Facial_Emotion_Recognition/Facial_emotion_images.zip
 *.zip
 *.keras
 *.h5
+
+elective/Recommendation_Systems/ratings_Electronics.csv
