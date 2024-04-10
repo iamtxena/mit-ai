@@ -17,7 +17,7 @@ import tensorflow as tf
 from sklearn.metrics import classification_report, confusion_matrix
 from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.optimizers import SGD, Adam, Nadam
+from tensorflow.keras.optimizers import SGD, Adam, Nadam, RMSprop
 
 
 class DelayedEarlyStopping(EarlyStopping):
@@ -144,8 +144,10 @@ def run_model(
         optimizer = Adam(learning_rate=learning_rate)
     elif optimizer_name.lower() == "nadam":
         optimizer = Nadam(learning_rate=learning_rate)
+    elif optimizer_name.lower() == "rmsprop":
+        optimizer = RMSprop(learning_rate=learning_rate)
     else:
-        raise ValueError("Optimizer not supported. Use 'SGD' or 'Adam'.")
+        raise ValueError("Optimizer not supported. Use 'SGD', 'Adam', 'Nadam', or 'RMSprop'.")
 
     # Compiling the model
     model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"])
