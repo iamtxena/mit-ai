@@ -53,6 +53,18 @@ python run.py -f <config_file>.yaml
 
 Replace `<config_file>` with the name of your configuration file.
 
+### Batch Execution Mode
+
+To run the model with a batch of configurations, use the `-b` or `--batch` option followed by the batch configuration file name:
+
+```bash
+python run.py -b <batch_config_file>.yaml
+```
+
+Replace `<batch_config_file>` with the name of your batch configuration file. This file should contain different combinations of learning rates, batch sizes, and optimizers to experiment with.
+
+The batch execution will run the model multiple times, each with a different set of parameters as defined in the batch configuration file. This is useful for hyperparameter tuning and finding the best model configuration.
+
 ## Inputs and Outputs
 
 - Input images should be placed in the `input_images/` directory or a directory specified by the `-d` option.
@@ -71,6 +83,12 @@ Running the model with a custom configuration file:
 
 ```bash
 python run.py -f custom_config.yaml
+```
+
+Running the model with a batch of configurations:
+
+```bash
+python run.py -b batch_config.yaml
 ```
 
 ## Output
