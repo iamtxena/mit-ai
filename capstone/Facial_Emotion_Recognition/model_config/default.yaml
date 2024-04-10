@@ -62,5 +62,10 @@ model:
     epochs: 30
     batch_size: 16
     patience: 7
-
+  data:
+     color_mode: grayscale
+     color_layers: 1
+     img_width: 48
+     img_height: 48
+     use_data_loaders: true
 # using https://dspace.library.uvic.ca/server/api/core/bitstreams/25d0a7d6-93af-4e58-a28d-a92dd8d45ca4/content

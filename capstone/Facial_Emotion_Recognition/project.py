@@ -17,8 +17,19 @@ import yaml
 from model import run_model
 from PIL import Image
 from prediction import predict_and_plot, predict_images
-from tensorflow.keras.layers import Conv2D, Dense, Dropout, Flatten, MaxPooling2D
+from tensorflow.keras.layers import (
+    BatchNormalization,
+    Conv2D,
+    Dense,
+    Dropout,
+    Flatten,
+    Input,
+    LeakyReLU,
+    MaxPooling2D,
+    ReLU,
+)
 from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
 class FacialEmotionRecognition:
@@ -28,6 +39,7 @@ class FacialEmotionRecognition:
     Attributes:
         data_dir (str): Directory where the data is stored.
         categories (List[str]): List of categories or emotions to recognize.
+        subdirs (List[str]): List of subdirectories to load data from.
         subdirs_dict (Dict[str, str]): Dictionary mapping data subsets to their directory names.
         X_train, X_validation, X_test (List[np.ndarray]): Lists to store training, validation, and test images.
         y_train, y_validation, y_test (List[int]): Lists to store labels for training, validation, and test images.
@@ -35,39 +47,97 @@ class FacialEmotionRecognition:
         y_train_encoded, y_validation_encoded, y_test_encoded (List[int]): Lists to store one-hot encoded labels for training, validation, and test datasets.
     """
 
-    def __init__(self, data_dir: str, categories: List[str]):
+    def __init__(self, data_dir: str, subdirs: List[str], categories: List[str], model_config_path: str):
         self.data_dir = data_dir
         self.categories = categories
-        self.subdirs_dict = {"train": "train", "validation": "validation", "test": "test"}
+        self.subdirs = subdirs
+        self.subdirs_dict = {subdir: subdir for subdir in self.subdirs}
         self.X_train, self.y_train = [], []
         self.X_validation, self.y_validation = [], []
         self.X_test, self.y_test = [], []
         self.y_train_df, self.y_validation_df, self.y_test_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         self.y_train_encoded, self.y_validation_encoded, self.y_test_encoded = [], [], []
+        self.model_config_path = model_config_path
+        # Create train_dir, validation_dir, and test_dir based on subdirs
+        self.train_dir = os.path.join(self.data_dir, self.subdirs[0])
+        self.validation_dir = os.path.join(self.data_dir, self.subdirs[1])
+        self.test_dir = os.path.join(self.data_dir, self.subdirs[2])
+
+        # Load model configuration
+        config = self.load_model_config(self.model_config_path)
+        self.batch_size = config["model"]["train"]["batch_size"]
+        self.color_mode = config["model"]["data"]["color_mode"]
+        self.color_layers = config["model"]["data"]["color_layers"]
+        self.img_width = config["model"]["data"]["img_width"]
+        self.img_height = config["model"]["data"]["img_height"]
+        self.use_data_loaders = config["model"]["data"]["use_data_loaders"]
+
+        # Initialize data generators
+        self.train_datagen = ImageDataGenerator(
+            rescale=1.0 / 255,
+            horizontal_flip=True,
+            brightness_range=(0.5, 1.5),
+            shear_range=0.3,
+            rotation_range=20,
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            zoom_range=0.1,
+        )
+        self.validation_datagen = ImageDataGenerator(rescale=1.0 / 255)
+        self.test_datagen = ImageDataGenerator(rescale=1.0 / 255)
+        self.train_generator = None
+        self.validation_generator = None
+        self.test_generator = None
 
     def load_data(self) -> None:
         """
         Loads images and their labels from the dataset directories.
         """
-        for key, subdir in self.subdirs_dict.items():
-            images, labels = [], []
-            for category in self.categories:
-                path = os.path.join(self.data_dir, subdir, category)
-                class_num = self.categories.index(category)
-                for img_name in os.listdir(path):
-                    try:
-                        img_path = os.path.join(path, img_name)
-                        img = Image.open(img_path)
-                        images.append(np.array(img))
-                        labels.append(class_num)
-                    except (IOError, ValueError) as e:
-                        print(f"Failed to process {img_name}: {e}")
-            if key == "train":
-                self.X_train, self.y_train = images, labels
-            elif key == "validation":
-                self.X_validation, self.y_validation = images, labels
-            elif key == "test":
-                self.X_test, self.y_test = images, labels
+
+        if self.use_data_loaders:
+            self.train_generator = self.train_datagen.flow_from_directory(
+                self.train_dir,
+                target_size=(self.img_width, self.img_height),
+                batch_size=self.batch_size,
+                color_mode=self.color_mode,
+                class_mode="categorical",
+            )
+            self.validation_generator = self.validation_datagen.flow_from_directory(
+                self.validation_dir,
+                target_size=(self.img_width, self.img_height),
+                batch_size=self.batch_size,
+                color_mode=self.color_mode,
+                class_mode="categorical",
+                shuffle=False,
+            )
+            self.test_generator = self.test_datagen.flow_from_directory(
+                self.test_dir,
+                target_size=(self.img_width, self.img_height),
+                batch_size=self.batch_size,
+                color_mode=self.color_mode,
+                class_mode="categorical",
+                shuffle=False,
+            )
+        else:
+            for key, subdir in self.subdirs_dict.items():
+                images, labels = [], []
+                for category in self.categories:
+                    path = os.path.join(self.data_dir, subdir, category)
+                    class_num = self.categories.index(category)
+                    for img_name in os.listdir(path):
+                        try:
+                            img_path = os.path.join(path, img_name)
+                            img = Image.open(img_path)
+                            images.append(np.array(img))
+                            labels.append(class_num)
+                        except (IOError, ValueError) as e:
+                            print(f"Failed to process {img_name}: {e}")
+                if key == "train":
+                    self.X_train, self.y_train = images, labels
+                elif key == "validation":
+                    self.X_validation, self.y_validation = images, labels
+                elif key == "test":
+                    self.X_test, self.y_test = images, labels
 
     def preprocess_data(self) -> None:
         """
@@ -142,7 +212,7 @@ class FacialEmotionRecognition:
         """
         Creates a model based on the configuration.
 
-        This method now supports Conv2D, MaxPooling2D, Flatten, Dense, and Dropout layers.
+        This method now supports Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization, LeakyReLU, and ReLU layers.
         It can be easily extended to support additional layer types by adding more conditions
         and handling their specific arguments.
 
@@ -153,6 +223,9 @@ class FacialEmotionRecognition:
         - Sequential: A Keras Sequential model built according to the provided configuration.
         """
         model = Sequential()
+        # With an Input layer at the beginning of the model
+        model.add(Input(shape=(self.img_width, self.img_height, self.color_layers)))
+
         for layer_config in config["model"]["layers"]:
             layer_type = layer_config["type"]
             # Remove 'type' from the dictionary to avoid passing it as an argument
@@ -171,6 +244,12 @@ class FacialEmotionRecognition:
                 model.add(Dense(**layer_args))
             elif layer_type == "Dropout":
                 model.add(Dropout(**layer_args))
+            elif layer_type == "BatchNormalization":
+                model.add(BatchNormalization())
+            elif layer_type == "LeakyReLU":
+                model.add(LeakyReLU(**layer_args))
+            elif layer_type == "ReLU":
+                model.add(ReLU())
             else:
                 raise ValueError(f"Unsupported layer type: {layer_type}")
         return model
@@ -217,36 +296,57 @@ class FacialEmotionRecognition:
         """
         config = self.load_model_config(model_config_path)
         model = self.create_model_from_config(config)
-
-        # Adjust the compile and train settings based on the config
         compile_config = config["model"]["compile"]
         train_config = config["model"]["train"]
 
-        # Call the run_model function from model.py
-        (
-            model_summary,
-            history_output,
-            test_accuracy_output,
-            classification_report_output,
-            accuracy_plot_path,
-            confusion_matrix_path,
-        ) = run_model(
-            model=model,
-            optimizer_name=compile_config["optimizer_name"],
-            learning_rate=compile_config["learning_rate"],
-            epochs=train_config["epochs"],
-            batch_size=train_config["batch_size"],
-            patience=train_config["patience"],
-            X_train=self.X_train,
-            y_train_encoded=self.y_train_encoded.to_numpy(),
-            X_validation=self.X_validation,
-            y_validation_encoded=self.y_validation_encoded.to_numpy(),
-            X_test=self.X_test,
-            y_test_encoded=self.y_test_encoded.to_numpy(),
-            CATEGORIES=self.categories,
-        )
+        if self.use_data_loaders:
+            (
+                model_summary,
+                history_output,
+                test_accuracy_output,
+                classification_report_output,
+                accuracy_plot_path,
+                confusion_matrix_path,
+            ) = run_model(
+                model=model,
+                optimizer_name=compile_config["optimizer_name"],
+                learning_rate=compile_config["learning_rate"],
+                epochs=train_config["epochs"],
+                batch_size=train_config["batch_size"],
+                patience=train_config["patience"],
+                train_generator=self.train_generator,
+                validation_generator=self.validation_generator,
+                test_generator=self.test_generator,
+                CATEGORIES=self.categories,
+            )
+            predicted_image_filename = predict_and_plot(model, self.test_generator, None, self.categories)
+        else:
 
-        predicted_image_filename = predict_and_plot(model, self.X_test, self.y_test_encoded, self.categories)
+            # Call the run_model function from model.py
+            (
+                model_summary,
+                history_output,
+                test_accuracy_output,
+                classification_report_output,
+                accuracy_plot_path,
+                confusion_matrix_path,
+            ) = run_model(
+                model=model,
+                optimizer_name=compile_config["optimizer_name"],
+                learning_rate=compile_config["learning_rate"],
+                epochs=train_config["epochs"],
+                batch_size=train_config["batch_size"],
+                patience=train_config["patience"],
+                X_train=self.X_train,
+                y_train_encoded=self.y_train_encoded.to_numpy(),
+                X_validation=self.X_validation,
+                y_validation_encoded=self.y_validation_encoded.to_numpy(),
+                X_test=self.X_test,
+                y_test_encoded=self.y_test_encoded.to_numpy(),
+                CATEGORIES=self.categories,
+            )
+
+            predicted_image_filename = predict_and_plot(model, self.X_test, self.y_test_encoded, self.categories)
 
         # Process the outputs to generate a summary
         summary = self.generate_summary(
@@ -318,8 +418,19 @@ class FacialEmotionRecognition:
 
         images = np.expand_dims(np.array(images), axis=-1)  # Add channel dimension
 
-        # Predict emotions
-        predicted_emotions = predict_images(model, images, self.categories)
+        if self.use_data_loaders:
+            test_generator = self.test_datagen.flow_from_directory(
+                images_dir,
+                target_size=(self.img_width, self.img_height),
+                batch_size=1,
+                color_mode=self.color_mode,
+                class_mode="categorical",
+                shuffle=False,
+            )
+            predicted_emotions = predict_images(model, test_generator, self.categories)
+        else:
+            # Predict emotions
+            predicted_emotions = predict_images(model, images, self.categories)
 
         # Generate HTML output
         self.generate_html_output(predicted_emotions, images, output_dir)

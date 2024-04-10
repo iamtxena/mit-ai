@@ -13,6 +13,7 @@ if __name__ == "__main__":
     BASE_DIR = "/home/iamtxena/sandbox/mit-ai/capstone/Facial_Emotion_Recognition"
     DATA_DIR = os.path.join(BASE_DIR, "Facial_emotion_images")
     CATEGORIES = ["happy", "neutral", "sad", "surprise"]
+    SUBDIRS = ["train", "validation", "test"]
     CONFIG_DIR = os.path.join(BASE_DIR, "model_config")
     FINAL_MODELS_DIR = os.path.join(BASE_DIR, "final_models")
     INPUT_IMAGES_DIR = os.path.join(BASE_DIR, "input_images")
@@ -36,7 +37,7 @@ if __name__ == "__main__":
     model_path = os.path.join(FINAL_MODELS_DIR, args.model)
 
     # Initialize the FacialEmotionRecognition instance
-    fer = FacialEmotionRecognition(DATA_DIR, CATEGORIES)
+    fer = FacialEmotionRecognition(DATA_DIR, SUBDIRS, CATEGORIES, config_path)
 
     if args.predict:
         # Ensure the model file exists
