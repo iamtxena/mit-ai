@@ -1,20 +1,39 @@
 model:
   layers:
     - type: Conv2D
-      filters: 32
-      kernel_size: [3, 3]
-      activation: relu
-      padding: same
-    - type: MaxPooling2D
-      pool_size: [2, 2]
-    - type: Conv2D
       filters: 64
       kernel_size: [3, 3]
       activation: relu
       padding: same
     - type: MaxPooling2D
       pool_size: [2, 2]
+      padding: same
+    - type: Dropout
+      rate: 0.2
+    - type: Conv2D
+      filters: 32
+      kernel_size: [3, 3]
+      activation: relu
+      padding: same
+    - type: MaxPooling2D
+      pool_size: [2, 2]
+      padding: same
+    - type: Dropout
+      rate: 0.2
+    - type: Conv2D
+      filters: 32
+      kernel_size: [3, 3]
+      activation: relu
+      padding: same
+    - type: MaxPooling2D
+      pool_size: [2, 2]
+      padding: same
+    - type: Dropout
+      rate: 0.2
     - type: Flatten
+    - type: Dense
+      units: 512
+      activation: relu
     - type: Dense
       units: 64
       activation: relu
@@ -25,9 +44,9 @@ model:
     optimizer_name: adam
     learning_rate: 0.001
   train:
-    epochs: 2
+    epochs: 30
     batch_size: 32
-    patience: 3
+    patience: 7
   data:
      color_mode: grayscale
      color_layers: 1

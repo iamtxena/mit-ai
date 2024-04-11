@@ -14,60 +14,123 @@ import numpy as np
 import pandas as pd
 import pyheif
 import yaml
+
+# Assuming model.py and prediction.py are correctly placed and accessible
 from model import run_model
+
+# Import ModelConfig from model_config.py
+from model_config import ModelConfig
 from PIL import Image
 from prediction import predict_and_plot, predict_images
-from tensorflow.keras.layers import Conv2D, Dense, Dropout, Flatten, MaxPooling2D
+from tensorflow.keras.layers import (
+    BatchNormalization,
+    Conv2D,
+    Dense,
+    Dropout,
+    Flatten,
+    Input,
+    LeakyReLU,
+    MaxPooling2D,
+    ReLU,
+)
 from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
 class FacialEmotionRecognition:
     """
     A class for recognizing facial emotions from images.
-
-    Attributes:
-        data_dir (str): Directory where the data is stored.
-        categories (List[str]): List of categories or emotions to recognize.
-        subdirs_dict (Dict[str, str]): Dictionary mapping data subsets to their directory names.
-        X_train, X_validation, X_test (List[np.ndarray]): Lists to store training, validation, and test images.
-        y_train, y_validation, y_test (List[int]): Lists to store labels for training, validation, and test images.
-        y_train_df, y_validation_df, y_test_df (pd.DataFrame): DataFrames to store labels for training, validation, and test datasets.
-        y_train_encoded, y_validation_encoded, y_test_encoded (List[int]): Lists to store one-hot encoded labels for training, validation, and test datasets.
     """
 
-    def __init__(self, data_dir: str, categories: List[str]):
+    def __init__(self, data_dir: str, subdirs: List[str], categories: List[str], model_config: ModelConfig):
         self.data_dir = data_dir
         self.categories = categories
-        self.subdirs_dict = {"train": "train", "validation": "validation", "test": "test"}
+        self.subdirs = subdirs
+        self.model_config = model_config.config  # Access the configuration dictionary directly
+        self.subdirs_dict = {subdir: subdir for subdir in self.subdirs}
         self.X_train, self.y_train = [], []
         self.X_validation, self.y_validation = [], []
         self.X_test, self.y_test = [], []
         self.y_train_df, self.y_validation_df, self.y_test_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         self.y_train_encoded, self.y_validation_encoded, self.y_test_encoded = [], [], []
+        self.train_dir = os.path.join(self.data_dir, self.subdirs[0])
+        self.validation_dir = os.path.join(self.data_dir, self.subdirs[1])
+        self.test_dir = os.path.join(self.data_dir, self.subdirs[2])
+
+        # Use the model_config to set up the environment
+        self.batch_size = self.model_config["model"]["train"]["batch_size"]
+        self.color_mode = self.model_config["model"]["data"]["color_mode"]
+        self.color_layers = self.model_config["model"]["data"]["color_layers"]
+        self.img_width = self.model_config["model"]["data"]["img_width"]
+        self.img_height = self.model_config["model"]["data"]["img_height"]
+        self.use_data_loaders = self.model_config["model"]["data"]["use_data_loaders"]
+
+        # Initialize data generators
+        self.train_datagen = ImageDataGenerator(
+            rescale=1.0 / 255,
+            horizontal_flip=True,
+            brightness_range=(0.5, 1.5),
+            shear_range=0.3,
+            rotation_range=20,
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            zoom_range=0.1,
+        )
+        self.validation_datagen = ImageDataGenerator(rescale=1.0 / 255)
+        self.test_datagen = ImageDataGenerator(rescale=1.0 / 255)
+        self.train_generator = None
+        self.validation_generator = None
+        self.test_generator = None
 
     def load_data(self) -> None:
         """
         Loads images and their labels from the dataset directories.
         """
-        for key, subdir in self.subdirs_dict.items():
-            images, labels = [], []
-            for category in self.categories:
-                path = os.path.join(self.data_dir, subdir, category)
-                class_num = self.categories.index(category)
-                for img_name in os.listdir(path):
-                    try:
-                        img_path = os.path.join(path, img_name)
-                        img = Image.open(img_path)
-                        images.append(np.array(img))
-                        labels.append(class_num)
-                    except (IOError, ValueError) as e:
-                        print(f"Failed to process {img_name}: {e}")
-            if key == "train":
-                self.X_train, self.y_train = images, labels
-            elif key == "validation":
-                self.X_validation, self.y_validation = images, labels
-            elif key == "test":
-                self.X_test, self.y_test = images, labels
+
+        if self.use_data_loaders:
+            self.train_generator = self.train_datagen.flow_from_directory(
+                self.train_dir,
+                target_size=(self.img_width, self.img_height),
+                batch_size=self.batch_size,
+                color_mode=self.color_mode,
+                class_mode="categorical",
+            )
+            self.validation_generator = self.validation_datagen.flow_from_directory(
+                self.validation_dir,
+                target_size=(self.img_width, self.img_height),
+                batch_size=self.batch_size,
+                color_mode=self.color_mode,
+                class_mode="categorical",
+                shuffle=False,
+            )
+            self.test_generator = self.test_datagen.flow_from_directory(
+                self.test_dir,
+                target_size=(self.img_width, self.img_height),
+                batch_size=self.batch_size,
+                color_mode=self.color_mode,
+                class_mode="categorical",
+                shuffle=False,
+            )
+        else:
+            for key, subdir in self.subdirs_dict.items():
+                images, labels = [], []
+                for category in self.categories:
+                    path = os.path.join(self.data_dir, subdir, category)
+                    class_num = self.categories.index(category)
+                    for img_name in os.listdir(path):
+                        try:
+                            img_path = os.path.join(path, img_name)
+                            img = Image.open(img_path)
+                            images.append(np.array(img))
+                            labels.append(class_num)
+                        except (IOError, ValueError) as e:
+                            print(f"Failed to process {img_name}: {e}")
+                if key == "train":
+                    self.X_train, self.y_train = images, labels
+                elif key == "validation":
+                    self.X_validation, self.y_validation = images, labels
+                elif key == "test":
+                    self.X_test, self.y_test = images, labels
 
     def preprocess_data(self) -> None:
         """
@@ -130,19 +193,11 @@ class FacialEmotionRecognition:
         self.y_validation_encoded = pd.get_dummies(self.y_validation_df["Label"]).astype(int)
         self.y_test_encoded = pd.get_dummies(self.y_test_df["Label"]).astype(int)
 
-    def load_model_config(self, model_config_path: str):
-        """
-        Loads the model configuration from a YAML file.
-        """
-        with open(model_config_path, "r", encoding="utf-8") as file:
-            config = yaml.safe_load(file)
-        return config
-
     def create_model_from_config(self, config):
         """
         Creates a model based on the configuration.
 
-        This method now supports Conv2D, MaxPooling2D, Flatten, Dense, and Dropout layers.
+        This method now supports Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization, LeakyReLU, and ReLU layers.
         It can be easily extended to support additional layer types by adding more conditions
         and handling their specific arguments.
 
@@ -153,6 +208,9 @@ class FacialEmotionRecognition:
         - Sequential: A Keras Sequential model built according to the provided configuration.
         """
         model = Sequential()
+        # With an Input layer at the beginning of the model
+        model.add(Input(shape=(self.img_width, self.img_height, self.color_layers)))
+
         for layer_config in config["model"]["layers"]:
             layer_type = layer_config["type"]
             # Remove 'type' from the dictionary to avoid passing it as an argument
@@ -171,6 +229,12 @@ class FacialEmotionRecognition:
                 model.add(Dense(**layer_args))
             elif layer_type == "Dropout":
                 model.add(Dropout(**layer_args))
+            elif layer_type == "BatchNormalization":
+                model.add(BatchNormalization())
+            elif layer_type == "LeakyReLU":
+                model.add(LeakyReLU(**layer_args))
+            elif layer_type == "ReLU":
+                model.add(ReLU())
             else:
                 raise ValueError(f"Unsupported layer type: {layer_type}")
         return model
@@ -187,11 +251,17 @@ class FacialEmotionRecognition:
     ):
         """
         Process and format the outputs into a concise summary, including paths to the accuracy and confusion matrix images.
+        Now also includes model configuration parameters before the model summary.
         """
+        # Convert the model configuration to a formatted string
+        config_str = yaml.dump(self.model_config)
+
         summary = f"""
         <html>
         <head><title>Model Summary - {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</title></head>
         <body>
+        <h1>Model Configuration</h1>
+        <pre>{config_str}</pre>
         <h1>Model Summary</h1>
         <pre>{model_summary}</pre>
         <h2>Test Accuracy</h2>
@@ -211,42 +281,65 @@ class FacialEmotionRecognition:
         """
         return summary
 
-    def create_and_run_model(self, model_config_path: str):
+    def create_and_run_model(self):
         """
-        Loads model configuration from a YAML file, creates the model, and runs it.
+        Creates the model and runs it based on the configuration provided during class initialization.
         """
-        config = self.load_model_config(model_config_path)
-        model = self.create_model_from_config(config)
+        # Access configuration directly from self.model_config
+        compile_config = self.model_config["model"]["compile"]
+        train_config = self.model_config["model"]["train"]
 
-        # Adjust the compile and train settings based on the config
-        compile_config = config["model"]["compile"]
-        train_config = config["model"]["train"]
+        # Create the model
+        model = self.create_model_from_config(self.model_config)
 
-        # Call the run_model function from model.py
-        (
-            model_summary,
-            history_output,
-            test_accuracy_output,
-            classification_report_output,
-            accuracy_plot_path,
-            confusion_matrix_path,
-        ) = run_model(
-            model=model,
-            optimizer_name=compile_config["optimizer_name"],
-            learning_rate=compile_config["learning_rate"],
-            epochs=train_config["epochs"],
-            batch_size=train_config["batch_size"],
-            patience=train_config["patience"],
-            X_train=self.X_train,
-            y_train_encoded=self.y_train_encoded.to_numpy(),
-            X_validation=self.X_validation,
-            y_validation_encoded=self.y_validation_encoded.to_numpy(),
-            X_test=self.X_test,
-            y_test_encoded=self.y_test_encoded.to_numpy(),
-            CATEGORIES=self.categories,
-        )
+        if self.use_data_loaders:
+            (
+                model_summary,
+                history_output,
+                test_accuracy_output,
+                classification_report_output,
+                accuracy_plot_path,
+                confusion_matrix_path,
+            ) = run_model(
+                model=model,
+                optimizer_name=compile_config["optimizer_name"],
+                learning_rate=compile_config["learning_rate"],
+                epochs=train_config["epochs"],
+                batch_size=train_config["batch_size"],
+                patience=train_config["patience"],
+                train_generator=self.train_generator,
+                validation_generator=self.validation_generator,
+                test_generator=self.test_generator,
+                CATEGORIES=self.categories,
+            )
+            predicted_image_filename = predict_and_plot(model, self.test_generator, None, self.categories)
+        else:
 
-        predicted_image_filename = predict_and_plot(model, self.X_test, self.y_test_encoded, self.categories)
+            # Call the run_model function from model.py
+            (
+                model_summary,
+                history_output,
+                test_accuracy_output,
+                classification_report_output,
+                accuracy_plot_path,
+                confusion_matrix_path,
+            ) = run_model(
+                model=model,
+                optimizer_name=compile_config["optimizer_name"],
+                learning_rate=compile_config["learning_rate"],
+                epochs=train_config["epochs"],
+                batch_size=train_config["batch_size"],
+                patience=train_config["patience"],
+                X_train=self.X_train,
+                y_train_encoded=self.y_train_encoded.to_numpy(),
+                X_validation=self.X_validation,
+                y_validation_encoded=self.y_validation_encoded.to_numpy(),
+                X_test=self.X_test,
+                y_test_encoded=self.y_test_encoded.to_numpy(),
+                CATEGORIES=self.categories,
+            )
+
+            predicted_image_filename = predict_and_plot(model, self.X_test, self.y_test_encoded, self.categories)
 
         # Process the outputs to generate a summary
         summary = self.generate_summary(
@@ -269,13 +362,13 @@ class FacialEmotionRecognition:
         with open(f"{results_path}/output_{current_time}.html", "w", encoding="utf-8") as f:
             f.write(summary)
 
-    def run(self, run_config_path: str) -> None:
+    def run(self) -> None:
         """
-        Executes the main functions to load and preprocess the data.
+        Executes the main functions to load and preprocess the data, and create and run the model.
         """
         self.load_data()
         self.preprocess_data()
-        self.create_and_run_model(run_config_path)
+        self.create_and_run_model()
 
     def predict(self, model_path: str, images_dir: str, output_dir: str) -> None:
         """
@@ -318,23 +411,38 @@ class FacialEmotionRecognition:
 
         images = np.expand_dims(np.array(images), axis=-1)  # Add channel dimension
 
-        # Predict emotions
-        predicted_emotions = predict_images(model, images, self.categories)
+        if self.use_data_loaders:
+            test_generator = self.test_datagen.flow_from_directory(
+                images_dir,
+                target_size=(self.img_width, self.img_height),
+                batch_size=1,
+                color_mode=self.color_mode,
+                class_mode="categorical",
+                shuffle=False,
+            )
+            predicted_emotions = predict_images(model, test_generator, self.categories)
+        else:
+            # Predict emotions
+            predicted_emotions = predict_images(model, images, self.categories)
 
         # Generate HTML output
-        self.generate_html_output(predicted_emotions, images, output_dir)
+        self.generate_html_output(predicted_emotions, images, output_dir, self.model_config)
 
-    def generate_html_output(self, predicted_emotions, images, output_dir):
+    def generate_html_output(self, predicted_emotions, images, output_dir, model_config):
         """
-        Generates an HTML file displaying images with their predicted emotions.
+        Generates an HTML file displaying images with their predicted emotions and includes the model configuration.
 
         Parameters:
         - predicted_emotions (List[str]): List of predicted emotions.
         - images (np.ndarray): Array of preprocessed images.
         - output_dir (str): Directory to save the HTML output.
+        - model_config (ModelConfig): The configuration object with all the settings used for the model.
         """
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         html_path = os.path.join(output_dir, f"prediction_{timestamp}.html")
+
+        # Convert the model configuration to a formatted string
+        config_str = yaml.dump(model_config.config)
 
         with open(html_path, "w", encoding="utf-8") as f:
             f.write("<html><head><title>Predictions</title></head><body>")
@@ -347,11 +455,13 @@ class FacialEmotionRecognition:
                 img_encoded.save(buffered, format="PNG")
                 img_str = base64.b64encode(buffered.getvalue()).decode()
 
-                # Adjust the width as desired, for example to 200 pixels
                 f.write(
                     f"<div style='margin: 10px;'><img src='data:image/png;base64,{img_str}' title='Predicted: {emotion}' style='width:200px; height:auto;'/><p>Predicted: {emotion}</p></div>"
                 )
 
-            f.write("</div></body></html>")
+            f.write("</div>")
+            f.write("<h2>Model Configuration</h2>")
+            f.write(f"<pre>{config_str}</pre>")
+            f.write("</body></html>")
 
         print(f"Predictions saved to {html_path}")

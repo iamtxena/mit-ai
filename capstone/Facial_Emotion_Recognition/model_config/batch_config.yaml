@@ -1,0 +1,15 @@
+experiments:
+  learning_rates:
+    - 0.01
+    - 0.001
+    - 0.0001
+  batch_sizes:
+    - 16
+    - 32
+    - 64
+    - 128
+  optimizers:
+    - Adam
+    - RMSprop
+    - SGD
+    - Adagrad

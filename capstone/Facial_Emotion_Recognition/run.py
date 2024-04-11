@@ -3,9 +3,11 @@ This script is used to run the Facial Emotion Recognition model with a specified
 """
 
 import argparse
+import itertools
 import os
 import sys
 
+from model_config import ModelConfig, load_config
 from project import FacialEmotionRecognition
 
 if __name__ == "__main__":
@@ -13,6 +15,7 @@ if __name__ == "__main__":
     BASE_DIR = "/home/iamtxena/sandbox/mit-ai/capstone/Facial_Emotion_Recognition"
     DATA_DIR = os.path.join(BASE_DIR, "Facial_emotion_images")
     CATEGORIES = ["happy", "neutral", "sad", "surprise"]
+    SUBDIRS = ["train", "validation", "test"]
     CONFIG_DIR = os.path.join(BASE_DIR, "model_config")
     FINAL_MODELS_DIR = os.path.join(BASE_DIR, "final_models")
     INPUT_IMAGES_DIR = os.path.join(BASE_DIR, "input_images")
@@ -29,42 +32,50 @@ if __name__ == "__main__":
     )
     parser.add_argument("-d", "--directory", default=INPUT_IMAGES_DIR, help="Directory of images to predict.")
     parser.add_argument("-out", "--output", default=PREDICTIONS_DIR, help="Output directory for predictions.")
+    parser.add_argument(
+        "-b", "--batch", help="Specify the batch YAML configuration filename for batch mode. (Do not include path)"
+    )
+
     args = parser.parse_args()
 
-    # Construct the full path to the configuration or model file
+    # Load the main configuration
     config_path = os.path.join(CONFIG_DIR, args.file)
-    model_path = os.path.join(FINAL_MODELS_DIR, args.model)
+    main_config = load_config(config_path)
+    model_config = ModelConfig(main_config)
 
-    # Initialize the FacialEmotionRecognition instance
-    fer = FacialEmotionRecognition(DATA_DIR, CATEGORIES)
+    if args.batch:
+        # Load and apply batch configuration
+        batch_config_path = os.path.join(CONFIG_DIR, args.batch)
+        batch_combinations = model_config.load_batch_config(batch_config_path)
 
-    if args.predict:
-        # Ensure the model file exists
-        if not os.path.exists(model_path):
-            print(f"Model file does not exist: {model_path}")
-            sys.exit(1)
-
-        # Ensure the input directory exists
-        if not os.path.exists(args.directory):
-            print(f"Input directory does not exist: {args.directory}")
-            sys.exit(1)
-
-        # Ensure the output directory exists or create it
-        if not os.path.exists(args.output):
-            os.makedirs(args.output)
-
-        print(f"Predicting emotions with model: {model_path} on images from: {args.directory}")
-        # Call the predict method (assuming it will handle the prediction and HTML output generation)
-        fer.predict(model_path, args.directory, args.output)
-        print("Prediction completed. Check the output directory for results.")
+        for learning_rate, optimizer, batch_size in batch_combinations:
+            model_config.update_batch_config(learning_rate, optimizer, batch_size)
+            # Initialize the FacialEmotionRecognition instance with the current combination
+            fer = FacialEmotionRecognition(DATA_DIR, SUBDIRS, CATEGORIES, model_config)
+            # Run the model
+            fer.run()
+            print(
+                f"Run completed with learning_rate: {learning_rate}, optimizer: {optimizer}, batch_size: {batch_size}"
+            )
     else:
-        # Check if the specified configuration file exists
-        if not os.path.exists(config_path):
-            print(f"Configuration file does not exist: {config_path}")
-            sys.exit(1)
+        # Non-batch mode logic
+        fer = FacialEmotionRecognition(DATA_DIR, SUBDIRS, CATEGORIES, model_config)
+        if args.predict:
+            # Prediction mode
+            if not os.path.exists(args.model):
+                print(f"Model file does not exist: {args.model}")
+                sys.exit(1)
+            if not os.path.exists(args.directory):
+                print(f"Input directory does not exist: {args.directory}")
+                sys.exit(1)
+            if not os.path.exists(args.output):
+                os.makedirs(args.output)
 
-        # Run the model with the specified or default configuration
-        print(f"Running model with config: {config_path}")
-        fer.run(config_path)
-
-        print("FacialEmotionRecognition executed successfully.")
+            print(f"Predicting emotions with model: {args.model} on images from: {args.directory}")
+            fer.predict(args.model, args.directory, args.output)
+            print("Prediction completed. Check the output directory for results.")
+        else:
+            # Training mode
+            print(f"Running model with config: {config_path}")
+            fer.run()
+            print("FacialEmotionRecognition executed successfully.")

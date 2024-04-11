@@ -1,0 +1,74 @@
+model:
+  layers:
+    - type: Conv2D
+      filters: 64
+      kernel_size: [2, 2]
+      padding: same
+    - type: BatchNormalization
+    - type: LeakyReLU
+      alpha: 0.1
+    - type: MaxPooling2D
+      pool_size: [2, 2]
+    - type: Conv2D
+      filters: 128
+      kernel_size: [2, 2]
+      padding: same
+    - type: BatchNormalization
+    - type: LeakyReLU
+      alpha: 0.1
+    - type: MaxPooling2D
+      pool_size: [2, 2]
+    - type: Conv2D
+      filters: 256
+      kernel_size: [2, 2]
+      padding: same
+    - type: BatchNormalization
+    - type: LeakyReLU
+      alpha: 0.1
+    - type: MaxPooling2D
+      pool_size: [2, 2]
+    - type: Conv2D
+      filters: 512
+      kernel_size: [2, 2]
+      padding: same
+    - type: BatchNormalization
+    - type: LeakyReLU
+      alpha: 0.1
+    - type: MaxPooling2D
+      pool_size: [2, 2]
+    - type: Conv2D
+      filters: 128
+      kernel_size: [2, 2]
+      padding: same
+    - type: BatchNormalization
+    - type: LeakyReLU
+      alpha: 0.1
+    - type: MaxPooling2D
+      pool_size: [2, 2]
+    - type: Flatten
+    - type: Dense
+      units: 512
+      activation: relu
+    - type: Dense
+      units: 128
+      activation: relu
+    - type: Dense
+      units: 64
+    - type: BatchNormalization
+    - type: ReLU
+    - type: Dense
+      units: 4
+      activation: softmax
+  compile:
+    optimizer_name: adam
+    learning_rate: 0.001
+  train:
+    epochs: 40
+    batch_size: 32
+    patience: 7
+  data:
+     color_mode: grayscale
+     color_layers: 1
+     img_width: 48
+     img_height: 48
+     use_data_loaders: true
